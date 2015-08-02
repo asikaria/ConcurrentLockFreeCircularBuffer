@@ -59,7 +59,7 @@ namespace CircularBuffer
                     return false;
                 }
                 loopcount++;
-            } while (Interlocked.CompareExchange(ref head, head + 1, currentHead) == currentHead); // this repeats the loop if head has moved in the meantime by some other thread, and does not match currentHead
+            } while (!(Interlocked.CompareExchange(ref head, head + 1, currentHead) == currentHead)); // this repeats the loop if head has moved in the meantime by some other thread, and does not match currentHead
             // after the loop terminates, currentHead represents the slot we got reserved. 
             // The value in the slot is still not valid. Reads should not read this value until it has been safely filled
 
@@ -71,7 +71,7 @@ namespace CircularBuffer
             
             // Now we need to move the published counter forward. This can only move when previously reserved slots have caught up. 
             // Published means it is safe for readers to read this value now
-            while (Interlocked.CompareExchange(ref published, currentHead, currentHead - 1) == (currentHead - 1))   // succeed only if published is caught up
+            while (!(Interlocked.CompareExchange(ref published, currentHead, currentHead - 1) == (currentHead - 1)))   // succeed only if published is caught up
             {
                 Thread.Yield();   // might as well let some other thread run, otherwise this would be a tight loop on a single-proc system until thread quantum expires
             }
@@ -94,7 +94,7 @@ namespace CircularBuffer
                     return -1;      // Should be exception, or some other way of signalling error. Current protocol restricts values to 0 & positive only.
                 }
                 loopcounter++;
-            } while (Interlocked.CompareExchange(ref tail, tail + 1, currentTail) == currentTail); // this repeats the loop if tail has moved in the meantime by some other thread, and does not match currentTail
+            } while (!(Interlocked.CompareExchange(ref tail, tail + 1, currentTail) == currentTail)); // this repeats the loop if tail has moved in the meantime by some other thread, and does not match currentTail
             // after the loop terminates, currentTail represents the slot we got reserved for reading
             // The value in the slot is still not consumed/copied. Writers should not overwrite this value until it has been safely consumed
 
@@ -104,7 +104,7 @@ namespace CircularBuffer
 
             int i = buffer[getPhysical(currentTail)];  // copy the value into i (represents "consuming" the value)
 
-            while (Interlocked.CompareExchange(ref consumed, currentTail, currentTail - 1) == (currentTail - 1))   // succeed only if consumed is caught up
+            while (!(Interlocked.CompareExchange(ref consumed, currentTail, currentTail - 1) == (currentTail - 1)))   // succeed only if consumed is caught up
             {
                 Thread.Yield();   
             }
